@@ -213,7 +213,7 @@ bool storeDataIntoBlockchain(const std::vector<unsigned char> & dstAddress,
             if (opDropData.size() != 0)
             {
                 Object options;
-                options.push_back(Pair("additionalDataSize", opDropData.size()));
+                options.push_back(Pair("additionalDataSize", static_cast<int>(opDropData.size())));
 
                 params.push_back(options);
             }
