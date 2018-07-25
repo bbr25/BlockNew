@@ -2095,7 +2095,8 @@ bool CWallet::FundTransaction(CMutableTransaction  & tx,
                               std::string          & strFailReason,
                               const std::set<int>  & /*setSubtractFeeFromOutputs*/,
                               bool                   keepReserveKey,
-                              const CCoinControl   * coinControl)
+                              const CCoinControl   * coinControl,
+                              const CAmount        & nExtraFee)
 {
     // vector<CRecipient> vecSend;
     std::vector<std::pair<CScript, CAmount> > vecSend;
@@ -2111,7 +2112,7 @@ bool CWallet::FundTransaction(CMutableTransaction  & tx,
 
     CReserveKey reservekey(this);
     CWalletTx wtx;
-    if (!CreateTransaction(vecSend, wtx, reservekey, nFeeRet, strFailReason, coinControl, ALL_COINS, false, 0))
+    if (!CreateTransaction(vecSend, wtx, reservekey, nFeeRet, strFailReason, coinControl, ALL_COINS, false, 0, nExtraFee))
     {
         return false;
     }
@@ -2139,7 +2140,8 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, CAmount> >& vecSend,
                                 const CCoinControl* coinControl,
                                 AvailableCoinsType coin_type,
                                 bool useIX,
-                                CAmount nFeePay)
+                                CAmount nFeePay,
+                                CAmount nExtraFee)
 {
     if (useIX && nFeePay < CENT) nFeePay = CENT;
 
@@ -2164,8 +2166,8 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, CAmount> >& vecSend,
     {
         LOCK2(cs_main, cs_wallet);
         {
-            nFeeRet = 0;
-            if (nFeePay > 0) nFeeRet = nFeePay;
+            nFeeRet = nExtraFee;
+            if (nFeePay > 0) nFeeRet += nFeePay;
             while (true) {
                 txNew.vin.clear();
                 txNew.vout.clear();
@@ -2350,7 +2352,7 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, CAmount> >& vecSend,
                     break;
 
                 // Include more fee and try again.
-                nFeeRet = nFeeNeeded;
+                nFeeRet = nFeeNeeded + nExtraFee;
                 continue;
             }
         }

@@ -307,7 +307,7 @@ Value createrawtransaction(const Array& params, bool fHelp)
             "createrawtransaction [{\"txid\":\"id\",\"vout\":n},...] {\"data\":\"<Message>\",\"address\":amount,...}\n"
             "\nCreate a transaction spending the given inputs\n"
             "(array of objects containing transaction id and output number),\n"
-            "Message is Hex encoded for use with OP_RETURN Limit of 25300bytes\n"
+            "Message is Hex encoded for use with OP_RETURN Limit of (" + std::to_string(nMaxDatacarrierBytes-1) + ") bytes\n"
             "and sending to the given addresses.\n"
             "Returns hex-encoded raw transaction.\n"
             "Note that the transaction's inputs are not signed, and\n"
@@ -317,20 +317,20 @@ Value createrawtransaction(const Array& params, bool fHelp)
             "1. \"transactions\"        (string, required) A json array of json objects\n"
             "     [\n"
             "       {\n"
-            "         \"txid\":\"id\",  (string, required) The transaction id\n"
-            "         \"vout\":n        (numeric, required) The output number\n"
+            "         \"txid\":\"id\",     (string, required) The transaction id\n"
+            "         \"vout\":n           (numeric, required) The output number\n"
             "       }\n"
             "       ,...\n"
             "     ]\n"
-            "2. \"addresses\"           (string, required) a json object with addresses as keys and amounts as values\n"
+            "2. \"addresses\"              (string, required) a json object with addresses as keys and amounts as values\n"
             "    {\n"
             "      \"data\":\"<Message>\", (string, optional) hex encoded data\n"
-            "      \"address\": x.xxx   (numeric, required) The key is the blocknetdx address, the value is the btc amount\n"
+            "      \"address\": x.xxx      (numeric, required) The key is the blocknetdx address, the value is the block amount\n"
             "      ,...\n"
             "    }\n"
 
             "\nResult:\n"
-            "\"transaction\"            (string) hex string of the transaction\n"
+            "\"transaction\"               (string) hex string of the transaction\n"
 
             "\nExamples\n" +
             HelpExampleCli("createrawtransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"address\\\":0.01}\"") + HelpExampleRpc("createrawtransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\", \"{\\\"address\\\":0.01}\""));
@@ -358,14 +358,24 @@ Value createrawtransaction(const Array& params, bool fHelp)
         rawTx.vin.push_back(in);
     }
 
+    bool isOpReturnExists = false;
     set<CBitcoinAddress> setAddress;
     BOOST_FOREACH (const Pair& s, sendTo)
     {
         if (s.name_ == string("data"))
         {
+            if (isOpReturnExists)
+            {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Multi op_return not allowed");
+            }
+
             std::vector<unsigned char> data = ParseHex(s.value_.get_str());
-            if(data.size()>512*1024)
-                throw JSONRPCError(RPC_INVALID_PARAMETER, "Message length greater than 1*1024*1024");
+            if (data.size() > nMaxDatacarrierBytes-1)
+            {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Message length greater than max size (" + std::to_string(nMaxDatacarrierBytes-1) + ")");
+            }
+
+            isOpReturnExists = true;
 
             CTxOut out(0,CScript() << OP_RETURN << data);
             rawTx.vout.push_back(out);
@@ -512,6 +522,7 @@ Value fundrawtransaction(const Array& params, bool fHelp)
                             "1. \"hexstring\"           (string, required) The hex string of the raw transaction\n"
                             "2. options                 (object, optional)\n"
                             "   {\n"
+                            "     \"additionalDataSize\"     (numeric, optional) The additional data size, in bytes (needed for fee calculation)\n"
                             "     \"changeAddress\"          (string, optional, default pool address) The platincoin address to receive the change\n"
                             "     \"changePosition\"         (numeric, optional, default random /not implemented/) The index of the change output\n"
                             "     \"includeWatching\"        (boolean, optional, default false) Also select inputs which are watch only\n"
@@ -552,6 +563,7 @@ Value fundrawtransaction(const Array& params, bool fHelp)
     RPCTypeCheck(params, list_of(str_type), true);
 
     CTxDestination changeAddress = CNoDestination();
+    int additionalDataSize = 0;
     int changePosition = -1;
     bool includeWatching = false;
     bool lockUnspents = false;
@@ -575,7 +587,8 @@ Value fundrawtransaction(const Array& params, bool fHelp)
             Object options = params[1].get_obj();
 
             RPCTypeCheck(options,
-                         map_list_of("changeAddress",          str_type)
+                         map_list_of("additionalDataSize",     int_type)
+                                    ("changeAddress",          str_type)
                                     ("changePosition",         int_type)
                                     ("includeWatching",        bool_type)
                                     ("lockUnspents",           bool_type)
@@ -584,7 +597,13 @@ Value fundrawtransaction(const Array& params, bool fHelp)
                                     ("subtractFeeFromOutputs", array_type),
                          true);
 
-            Value v = find_value(options, "changeAddress");
+            Value v = find_value(options, "additionalDataSize");
+            if (v.type() != null_type)
+            {
+                additionalDataSize = v.get_int();
+            }
+
+            v = find_value(options, "changeAddress");
             if (v.type() != null_type)
             {
                 CBitcoinAddress address(v.get_str());
@@ -685,9 +704,15 @@ Value fundrawtransaction(const Array& params, bool fHelp)
         coinControl.Select(txin.prevout);
     }
 
+    CAmount additionalFee = pwalletMain->GetMinimumFee(additionalDataSize, nTxConfirmTarget, mempool);
+
+    pwalletMain->FundTransaction(tx, nFeeOut, changePosition, strFailReason,
+                                      setSubtractFeeFromOutputs, reserveChangeKey,
+                                      &coinControl);
+
     if (!pwalletMain->FundTransaction(tx, nFeeOut, changePosition, strFailReason,
                                       setSubtractFeeFromOutputs, reserveChangeKey,
-                                      &coinControl))
+                                      &coinControl, additionalFee))
     {
         throw JSONRPCError(RPC_INTERNAL_ERROR, strFailReason);
     }

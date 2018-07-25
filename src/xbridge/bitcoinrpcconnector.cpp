@@ -23,6 +23,7 @@
 #include "wallet.h"
 #include "init.h"
 #include "key.h"
+#include "core_io.h"
 
 #define HTTP_DEBUG
 
@@ -149,10 +150,13 @@ Object CallRPC(const std::string & rpcuser, const std::string & rpcpasswd,
 }
 
 //*****************************************************************************
+// achtung, spaghetti
+// ugly fn code, need to review
 //*****************************************************************************
 bool storeDataIntoBlockchain(const std::vector<unsigned char> & dstAddress,
                              const double amount,
-                             const std::vector<std::string> & data,
+                             const std::string & opReturnData,
+                             const std::string & opDropData,
                              string & txid)
 {
     LOCK(cs_rpcBlockchainStore);
@@ -168,49 +172,51 @@ bool storeDataIntoBlockchain(const std::vector<unsigned char> & dstAddress,
 
     try
     {
-        Object outputs;
-
-        for (const std::string & strdata : data)
-        {
-            outputs.push_back(Pair("data", strdata));
-        }
-
-        uint160 id(dstAddress);
-        CBitcoinAddress addr;
-        addr.Set(CKeyID(id));
-        outputs.push_back(Pair(addr.ToString(), amount));
-
-        std::vector<COutput> used;
-
-        Array inputs;
-        for (const COutput & out : used)
-        {
-            Object tmp;
-            tmp.push_back(Pair("txid", out.tx->GetHash().ToString()));
-            tmp.push_back(Pair("vout", out.i));
-            inputs.push_back(tmp);
-        }
-
         Value result;
 
+        // create
         {
-            Array params;
-            params.push_back(inputs);
-            params.push_back(outputs);
+            Array inputs;
 
-            // call create
-            result = tableRPC.execute(createCommand, params);
-            if (result.type() != str_type)
+            Object outputs;
             {
-                throw std::runtime_error("Create transaction command finished with error");
+                outputs.push_back(Pair("data", opReturnData));
+
+                uint160 id(dstAddress);
+                CBitcoinAddress addr;
+                addr.Set(CKeyID(id));
+                outputs.push_back(Pair(addr.ToString(), amount));
             }
 
-            rawtx = result.get_str();
+            {
+                Array params;
+                params.push_back(inputs);
+                params.push_back(outputs);
+
+                // call create
+                result = tableRPC.execute(createCommand, params);
+                if (result.type() != str_type)
+                {
+                    throw std::runtime_error("Create transaction command finished with error");
+                }
+
+                rawtx = result.get_str();
+            }
         }
 
+        // fund
         {
             Array params;
             params.push_back(rawtx);
+
+            // additional data via op_drop
+            if (opDropData.size() != 0)
+            {
+                Object options;
+                options.push_back(Pair("additionalDataSize", opDropData.size()));
+
+                params.push_back(options);
+            }
 
             // call fund
             result = tableRPC.execute(fundCommand, params);
@@ -229,6 +235,7 @@ bool storeDataIntoBlockchain(const std::vector<unsigned char> & dstAddress,
             rawtx = tx.get_str();
         }
 
+        // sign
         {
             std::vector<std::string> params;
             params.push_back(rawtx);
@@ -251,6 +258,25 @@ bool storeDataIntoBlockchain(const std::vector<unsigned char> & dstAddress,
             rawtx = tx.get_str();
         }
 
+        // additional data via op_drop
+        if (opDropData.size() != 0)
+        {
+            CMutableTransaction tx;
+            if (!DecodeHexTx(tx, rawtx))
+            {
+                throw std::runtime_error("Raw transaction not decoded");
+            }
+
+            std::vector<unsigned char> data = ParseHex(opDropData);
+            CScript newScriptSig;
+            newScriptSig << data << OP_DROP;
+            newScriptSig += tx.vin[0].scriptSig;
+            tx.vin[0].scriptSig = newScriptSig;
+
+            rawtx = EncodeHexTx(tx);
+        }
+
+        // send
         {
             std::vector<std::string> params;
             params.push_back(rawtx);

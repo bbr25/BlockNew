@@ -22,10 +22,8 @@
 
 const QString testFrom("<input from address>");
 const QString testTo("<input to address>");
-// const QString testFromCurrency("XC");
-// const QString testToCurrency("SWIFT");
-const QString testFromAmount("0.0005");
-const QString testToAmount("0.0005");
+const QString testFromAmount("0.01");
+const QString testToAmount("0.01");
 
 //******************************************************************************
 //******************************************************************************

@@ -408,7 +408,8 @@ public:
                          std::string          & strFailReason,
                          const std::set<int>  & setSubtractFeeFromOutputs,
                          bool                   keepReserveKey = true,
-                         const CCoinControl   * coinControl = NULL);
+                         const CCoinControl   * coinControl = nullptr,
+                         const CAmount        & nExtraFee = 0);
 
     bool CreateTransaction(const std::vector<std::pair<CScript, CAmount> > & vecSend,
                            CWalletTx& wtxNew,
@@ -418,7 +419,8 @@ public:
                            const CCoinControl* coinControl = NULL,
                            AvailableCoinsType coin_type = ALL_COINS,
                            bool useIX = false,
-                           CAmount nFeePay = 0);
+                           CAmount nFeePay = 0,
+                           CAmount nExtraFee = 0);
 
     bool CreateTransaction(CScript scriptPubKey,
                            const CAmount& nValue,
