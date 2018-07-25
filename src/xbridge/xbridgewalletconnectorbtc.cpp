@@ -1334,10 +1334,10 @@ bool BtcWalletConnector<CryptoProvider>::init()
 //*****************************************************************************
 //*****************************************************************************
 template <class CryptoProvider>
-std::string BtcWalletConnector<CryptoProvider>::fromXAddr(const std::vector<unsigned char> & xaddr) const
+std::string BtcWalletConnector<CryptoProvider>::fromXAddr(const unsigned char * xaddr) const
 {
     xbridge::XBitcoinAddress addr;
-    addr.Set(CKeyID(uint160(&xaddr[0])), addrPrefix[0]);
+    addr.Set(CKeyID(uint160(xaddr)), addrPrefix[0]);
     return addr.ToString();
 }
 
@@ -1450,30 +1450,6 @@ bool BtcWalletConnector<CryptoProvider>::getUnspent(std::vector<wallet::UtxoEntr
             script[23] == 0x88 && script[24] == 0xac)
         {
             entry.address = fromXAddr(&script[3]);
-        }
-        else
-        {
-            // skip all other addresses, like p2sh, p2pk, etc
-            inputs.erase(inputs.begin() + i);
-            continue;
-        }
-
-        ++i;
-    }
-
-    if (withoutDust)
-    {
-        wallet::UtxoEntry & entry = inputs[i];
-
-        std::vector<unsigned char> script = ParseHex(entry.scriptPubKey);
-        // check p2pkh (like 76a91476bba472620ff0ecbfbf93d0d3909c6ca84ac81588ac)
-        if (script.size() == 25 &&
-            script[0] == 0x76 && script[1] == 0xa9 && script[2] == 0x14 &&
-            script[23] == 0x88 && script[24] == 0xac)
-        {
-            script.erase(script.begin(), script.begin()+3);
-            script.erase(script.end()-2, script.end());
-            entry.address = fromXAddr(script);
         }
         else
         {
