@@ -697,7 +697,7 @@ std::vector<std::string> App::networkCurrencies() const
     std::vector<CServicenode> snodes = mnodeman.GetFullServicenodeVector();
     // Obtain unique xwallets supported across network
     for (CServicenode &sn : snodes) {
-        for (auto &w : sn.connectedWallets) {
+        for (auto &w : sn.lastPing.connectedWallets) {
             if (!coins.count(w.strWalletName))
                 coins.insert(w.strWalletName);
         }
