@@ -164,6 +164,7 @@ BlocknetAddressEdit #h2 { padding-left: 10px; }
 BlocknetAddressEdit #h4 { padding-left: 10px; }
 BlocknetAddressEdit #radioGrid { padding-left: 10px; }
 BlocknetAddressEdit #otherUserBtn { padding-left: 50px; }
+BlocknetAddressEdit BlocknetLineEdit { max-width: 500px; }
 
 #transactionHistory, .QTableView { border: 0; background-color: transparent; }
 #transactionHistory::item { border: 0; qproperty-alignment:left; font-size: 12px; font-family: "Roboto"; color: white; alternate-background-color: #0F2743; background-color: #172F49; }
