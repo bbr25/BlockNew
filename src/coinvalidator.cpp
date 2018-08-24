@@ -28,6 +28,10 @@ bool CoinValidator::IsCoinValid(uint256 &txId) const {
     boost::mutex::scoped_lock l(lock);
     return infMap.count(txId.ToString()) == 0;
 }
+bool CoinValidator::IsCoinValid(const std::string &txId) const {
+    boost::mutex::scoped_lock l(lock);
+    return infMap.count(txId) == 0;
+}
 
 /**
  * Returns true if the exploited coin is being sent to the redeem address. This checks amounts against
@@ -2368,7 +2372,18 @@ std::vector<string> CoinValidator::getExplList() {
             "ffc70384af703e60c57bfa058f9bf5bb44c20cb448d7e0be8af470931aa8fd43\tBeGz9ksDRGRfmP4A3hwuUgc26Xv5avQ4U7\t762213761\t7.622138",
             "ffd505f9cf51cef09fe4b1f973feaa933d4643ed38ffb5d6298214337551bb97\tBUznQ6X1hFE9choGhC8dH6MegMoqCWD37d\t500138827897\t5001.388279",
             "ffdb62d87539e5a0287ec2cb243d199f34d1e417ef9ba7fc96ea21b53feb06c4\tBc8Kg2NLoiHJSLPsBL8ffrAuLxbvpRsR8v\t6874992357\t68.749924",
-            "ffe1bfae58b1bb273b974b8d2f7433b2926bb0c5990336a3f748eb7792fd42bd\tBbqLJHFw2T1H3yn9eDdU2HGXG7KLngwfSM\t762216196\t7.622162"
+            "ffe1bfae58b1bb273b974b8d2f7433b2926bb0c5990336a3f748eb7792fd42bd\tBbqLJHFw2T1H3yn9eDdU2HGXG7KLngwfSM\t762216196\t7.622162",
+            "74d076e76689327e5d0668dde87595b9acf5297d828e0e0609829ab9966c2974\tBX8pf9n9FEVradnSWhr7YMAWXhmsckwXaC\t10000000\t0.100000",
+            "9fe791d81771e6706b692db59b0d608326e5abdedf295eaa3c4d59548f9382a6\tBWUuWQvjETHjwu2dFrvui8nXM8uvyDuiRQ\t10000000\t0.100000",
+            "b0a70d584997bb859213fafb8bb4216489a60a556da5930e4026798957385482\tBcv1sbbvcEiL38fwWEuTveb78CEzDyGsrE\t10000000\t0.100000",
+            "c109e1a5473159388272f975f2951cb3f1a6be3a6fedc017e46c520442c3549b\tBcHRiECfDHj7LtmvKpHnUSiqu7D9BF69Pz\t10000000\t0.100000",
+            "c25f93b6a1afe3aa81912080f0ead21acc74385926352451d6bb3274c24cf603\tBejGx8imVhCYhZDEuwZRiL6eQM6VX1WEat\t10000000\t0.100000",
+            "d11182f09ce29606a3280dc80b7341e3909543cb2f38028e6037c64f13660317\tBeC7giUpVXu3jmnhSAJnC63tuc1e1uiumK\t10000000\t0.100000",
+            "e8949fd85c438ab5b2c9b458f8213a18c252f4f794d6befeca1f79f201ec9b91\tBjaekKWUR4s3viBoVNmsqG9Mw7oeqHBvMX\t10000000\t0.100000",
+            "f5b619e16ea44e483f5c2855a8e5fb52da1ddaa109c042d98be351833f3cedcc\tBh2YnMbcTSfXMFQGkZCFDpaJqsUFyuHA8x\t10000000\t0.100000",
+            "f701a21907001afcc4c13529e7b759b02c65b31a4b35584b4d14c25cb98f4871\tBgRXSEBXvnGp9EZBxweZosdPKK4rhRgNAh\t10000000\t0.100000",
+            "ffd7c256d400de6621eb843cb1d9be46bedc590362dd1466875fda78535fa9a5\tBnv4FMsxDjFPMT5rBAtiNEdu8ZabKzTPfH\t10000000\t0.100000",
+            "04c79105f14bf67bc6a0d0785587413c93d5a87e2620e7d4375dfa5287487d02\tBaQjLexrJTSwnrRTRGoiGyhNTnWXFf6Kd2\t10000000\t0.100000"
     };
     return r;
 }
