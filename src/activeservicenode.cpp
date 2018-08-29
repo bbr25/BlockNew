@@ -175,7 +175,10 @@ bool CActiveServicenode::SendServicenodePing(std::string& errorMessage, bool for
 
     LogPrintf("CActiveServicenode::SendServicenodePing() - Relay Servicenode Ping vin = %s\n", vin.ToString());
 
-    CServicenodePing mnp(vin);
+    xbridge::Exchange & e = xbridge::Exchange::instance();
+
+    CServicenodePing mnp(vin, e.connectedWallets());
+
     if (!mnp.Sign(keyServicenode, pubKeyServicenode)) {
         errorMessage = "Couldn't sign Servicenode Ping";
         return false;
@@ -293,7 +296,10 @@ bool CActiveServicenode::Register(std::string strService, std::string strKeyServ
 bool CActiveServicenode::Register(CTxIn vin, CService service, CKey keyCollateralAddress, CPubKey pubKeyCollateralAddress, CKey keyServicenode, CPubKey pubKeyServicenode, std::string& errorMessage)
 {
     CServicenodeBroadcast mnb;
-    CServicenodePing mnp(vin);
+
+    xbridge::Exchange & e = xbridge::Exchange::instance();
+
+    CServicenodePing mnp(vin, e.connectedWallets());
     if (!mnp.Sign(keyServicenode, pubKeyServicenode)) {
         errorMessage = strprintf("Failed to sign ping, vin: %s", vin.ToString());
         LogPrintf("CActiveServicenode::Register() -  %s\n", errorMessage);
@@ -302,8 +308,6 @@ bool CActiveServicenode::Register(CTxIn vin, CService service, CKey keyCollatera
     mnodeman.mapSeenServicenodePing.insert(make_pair(mnp.GetHash(), mnp));
 
     LogPrintf("CActiveServicenode::Register() - Adding to Servicenode list\n    service: %s\n    vin: %s\n", service.ToString(), vin.ToString());
-
-    xbridge::Exchange & e = xbridge::Exchange::instance();
 
     mnb = CServicenodeBroadcast(service, vin,
                                 pubKeyCollateralAddress, pubKeyServicenode,

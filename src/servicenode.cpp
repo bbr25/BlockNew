@@ -493,7 +493,7 @@ bool CServicenodeBroadcast::Create(const CTxIn & txin,
         pubKeyServicenodeNew.GetID().ToString());
 
 
-    CServicenodePing mnp(txin);
+    CServicenodePing mnp(txin, exchangeWallets);
     if (!mnp.Sign(keyServicenodeNew, pubKeyServicenodeNew)) {
         strErrorRet = strprintf("Failed to sign ping, servicenode=%s", txin.prevout.hash.ToString());
         LogPrintf("CServicenodeBroadcast::Create -- %s\n", strErrorRet);
@@ -732,6 +732,19 @@ CServicenodePing::CServicenodePing(const CTxIn & newVin)
     vchSig = std::vector<unsigned char>();
 }
 
+CServicenodePing::CServicenodePing(const CTxIn & newVin, const std::vector<std::string> & exchangeWallets)
+{
+    vin = newVin;
+    blockHash = chainActive[chainActive.Height() - 12]->GetBlockHash();
+    sigTime = GetAdjustedTime();
+    vchSig = std::vector<unsigned char>();
+
+    connectedWallets.clear();
+    for(const std::string & walletName : exchangeWallets)
+        connectedWallets.push_back(CServicenodeXWallet(walletName));
+    xwallets_in_ping = true;
+}
+
 
 bool CServicenodePing::Sign(const CKey& keyServicenode, const CPubKey & pubKeyServicenode)
 {
@@ -806,6 +819,8 @@ bool CServicenodePing::CheckAndUpdate(int& nDos, bool fRequireEnabled)
             }
 
             pmn->lastPing = *this;
+            if (this->xwallets_in_ping)
+                pmn->connectedWallets = this->connectedWallets;
 
             //mnodeman.mapSeenServicenodeBroadcast.lastPing is probably outdated, so we'll update it
             CServicenodeBroadcast mnb(*pmn);
@@ -835,4 +850,18 @@ void CServicenodePing::Relay()
 {
     CInv inv(MSG_SERVICENODE_PING, GetHash());
     RelayInv(inv);
+}
+
+std::string CServicenodePing::GetConnectedWalletsStr() const
+{
+    if(connectedWallets.size() == 0)
+        return "";
+
+    std::string separator = ",";
+
+    std::string result = boost::algorithm::join(connectedWallets |
+                                                boost::adaptors::transformed([](const CServicenodeXWallet & item) { return item.strWalletName;}),
+                                                separator);
+
+    return result;
 }

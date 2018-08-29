@@ -32,6 +32,22 @@ extern map<int64_t, uint256> mapCacheBlockHashes;
 
 bool GetBlockHash(uint256& hash, int nBlockHeight);
 
+class CServicenodeXWallet
+{
+public:
+    explicit CServicenodeXWallet() {}
+    explicit CServicenodeXWallet(const std::string & walletName) : strWalletName(walletName) {}
+
+    std::string strWalletName;
+
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
+    {
+        READWRITE(LIMITED_STRING(strWalletName, 8));
+    }
+};
 
 //
 // The Servicenode Ping Class : Contains a different serialize method for sending pings from servicenodes throughout the network
@@ -46,8 +62,45 @@ public:
     std::vector<unsigned char> vchSig;
     //removed stop
 
+    // connectedWallets: xbridge wallets (xWallet) list, connected to service node
+    //
+    // The list is part of the "ping" protocol message only if both the sending
+    // and receiving peer know to include it.  This is a result of the SerializationOp
+    // function, which compares the effective protocol version (nVersion) to the
+    // version that first introduced the list, SERVICENODE_WITH_XWALLETS_IN_PING_VERSION.
+    //
+    // The effective protocol version, nVersion, used by SerializationOp is the minimum
+    // of the PROTOCOL_VERSION of the sender and the receiver - this is a fundamental
+    // property of the protocol and allows for backward compatibility, i.e. for peers
+    // to communicate without error even if one is at a more advanced protocol version.
+    // A receiver that knows about connectedWallets in "ping" messages cannot expect
+    // every sender to include it, since they may not be up to that protocol version.
+    // Likewise a sender that knows about connectedWallets in "ping" messages cannot
+    // expect every receiver to know about it - that is why SerializationOp is given
+    // the effective protocol, nVersion, which is determined when a connection between
+    // peers is established.  See 'verack' message for details.
+    //
+    // When a "ping" message is received from a peer that does not include the list,
+    // it is default constructed to empty.
+    //
+    // An empty list is therefore ambiguous, it could be that
+    //   1) the effective protocol version includes the list (both sender and receiver
+    //      know to include it), but the originator was not currently
+    //      connected to any wallets (though it might in the future), or
+    //   2) the sending peer is at a lower protocol level so it does not include the list,
+    //      which is therefore default constructed to empty by the receiving peer
+    //
+    // Disambiguation of an empty list is done explicitly by indicating with
+    // an additional boolean, xwallets_in_ping, whether the connectedWallets variable is
+    // valid and has been initialized.  It is tempting to use boost::optional here,
+    // however it makes SerializationOp cumbersome.
+    //
+    bool xwallets_in_ping{false};
+    std::vector<CServicenodeXWallet> connectedWallets{};
+
     CServicenodePing();
     CServicenodePing(const CTxIn & newVin);
+    CServicenodePing(const CTxIn & newVin, const std::vector<std::string> & exchangeWallets);
 
     ADD_SERIALIZE_METHODS;
 
@@ -58,6 +111,12 @@ public:
         READWRITE(blockHash);
         READWRITE(sigTime);
         READWRITE(vchSig);
+        if (nVersion >= SERVICENODE_WITH_XWALLETS_IN_PING_VERSION)
+        {
+            READWRITE(connectedWallets);
+            if (ser_action.ForRead())
+                xwallets_in_ping = true;
+        }
     }
 
     bool CheckAndUpdate(int& nDos, bool fRequireEnabled = true);
@@ -83,6 +142,7 @@ public:
         swap(first.blockHash, second.blockHash);
         swap(first.sigTime, second.sigTime);
         swap(first.vchSig, second.vchSig);
+        swap(first.connectedWallets, second.connectedWallets);
     }
 
     CServicenodePing& operator=(CServicenodePing from)
@@ -98,23 +158,7 @@ public:
     {
         return !(a == b);
     }
-};
-
-class CServicenodeXWallet
-{
-public:
-    explicit CServicenodeXWallet() {}
-    explicit CServicenodeXWallet(const std::string & walletName) : strWalletName(walletName) {}
-
-    std::string strWalletName;
-
-    ADD_SERIALIZE_METHODS;
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
-    {
-        READWRITE(LIMITED_STRING(strWalletName, 8));
-    }
+    std::string GetConnectedWalletsStr() const;
 };
 
 //

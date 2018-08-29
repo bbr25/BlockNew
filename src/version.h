@@ -12,8 +12,12 @@
  * network protocol versioning
  */
 
-static const int PROTOCOL_VERSION = 70711;
+static const int PROTOCOL_VERSION = 70712;
 
+//! xwallets added to CServicenodePing, starting with this version
+static const int SERVICENODE_WITH_XWALLETS_IN_PING_VERSION = 70712;
+
+//! xwallets added to CServicenodeBroadcast, starting with this version
 static const int SERVICENODE_WITH_XBRIDGE_INFO_PROTO_VERSION = 70711;
 
 //! initial proto version, to be increased after version/verack negotiation
