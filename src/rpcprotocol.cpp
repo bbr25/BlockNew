@@ -264,6 +264,7 @@ string JSONRPCRequest(const string& strMethod, const Array& params, const Value&
     request.push_back(Pair("method", strMethod));
     request.push_back(Pair("params", params));
     request.push_back(Pair("id", id));
+    request.push_back(Pair("jsonrpc", "2.0"));
     return write_string(Value(request), json_spirit::none, 8) + "\n";
 }
 
