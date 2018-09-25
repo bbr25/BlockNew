@@ -169,6 +169,14 @@ BlocknetAddressBook QTableWidget #indicator[state="1"] { background-color: #F8BF
 BlocknetAddressBook QTableWidget #indicator[state="2"] { background-color: #FB7F70; }
 BlocknetAddressBook QTableWidget::item { padding: 3px; }
 
+BlocknetAddressBookTable { color: white; background-color: transparent; }
+BlocknetAddressBookTable QHeaderView { color: #37475C; background-color: transparent; }
+BlocknetAddressBookTable QHeaderView::section { background-color: transparent; }
+BlocknetAddressBookTable #indicator[state="0"] { background-color: #4BF5C6; }
+BlocknetAddressBookTable #indicator[state="1"] { background-color: #F8BF1C; }
+BlocknetAddressBookTable #indicator[state="2"] { background-color: #FB7F70; }
+BlocknetAddressBookTable::item { padding: 3px; }
+
 BlocknetAddressEdit #h2 { padding-left: 10px; }
 BlocknetAddressEdit #h4 { padding-left: 10px; }
 BlocknetAddressEdit #radioGrid { padding-left: 10px; }

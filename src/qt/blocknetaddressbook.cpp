@@ -8,6 +8,7 @@
 #include "blocknetavatar.h"
 
 #include <QHeaderView>
+#include <QApplication>
 
 BlocknetAddressBook::BlocknetAddressBook(QWidget *popup, QFrame *parent) : QFrame(parent), popupWidget(popup), layout(new QVBoxLayout) {
     this->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
@@ -31,8 +32,10 @@ BlocknetAddressBook::BlocknetAddressBook(QWidget *popup, QFrame *parent) : QFram
     filterLbl = new QLabel(tr("Filter by:"));
     filterLbl->setObjectName("title");
 
-    QStringList list{tr("All Addresses"), tr("Sending"), tr("Receiving")};
-    addressDropdown = new BlocknetDropdown(list);
+    addressDropdown = new BlocknetDropdown;
+    addressDropdown->addItem(tr("All Addresses"), FILTER_ALL);
+    addressDropdown->addItem(tr("Sending"),      FILTER_SENDING);
+    addressDropdown->addItem(tr("Receiving"),  FILTER_RECEIVING);
 
     table = new QTableWidget;
     table->setContentsMargins(QMargins());
@@ -63,6 +66,29 @@ BlocknetAddressBook::BlocknetAddressBook(QWidget *popup, QFrame *parent) : QFram
     table->horizontalHeader()->setSectionResizeMode(COLUMN_DELETE, QHeaderView::Stretch);
     table->setHorizontalHeaderLabels({ "", "", tr("Alias"), tr("Address"), "", "", "" });
 
+    addressTbl = new BlocknetAddressBookTable(popup);
+    //addressTbl->setObjectName("addressBookTable");
+    addressTbl->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    addressTbl->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    addressTbl->setSelectionBehavior(QAbstractItemView::SelectRows);
+    addressTbl->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    addressTbl->setAlternatingRowColors(true);
+    addressTbl->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    addressTbl->setShowGrid(false);
+    addressTbl->setContextMenuPolicy(Qt::CustomContextMenu);
+    addressTbl->setSortingEnabled(true);
+    addressTbl->verticalHeader()->setSectionResizeMode(QHeaderView::Fixed);
+    addressTbl->verticalHeader()->setDefaultSectionSize(78);
+    addressTbl->verticalHeader()->setVisible(false);
+    addressTbl->horizontalHeader()->setDefaultAlignment(Qt::AlignLeft);
+    addressTbl->horizontalHeader()->setSortIndicatorShown(true);
+    addressTbl->horizontalHeader()->setSectionsClickable(true);
+
+    // Set transaction data and adjust section sizes
+    //addressTbl->setWalletModel(walletModel);
+    addressTbl->setColumnWidth(COLUMN_ACTION, 50);
+    addressTbl->setColumnWidth(COLUMN_AVATAR, 50);
+
     topBoxLayout->addWidget(addAddressBtn, Qt::AlignLeft);
     topBoxLayout->addWidget(addButtonLbl, Qt::AlignLeft);
     topBoxLayout->addStretch(1);
@@ -73,7 +99,7 @@ BlocknetAddressBook::BlocknetAddressBook(QWidget *popup, QFrame *parent) : QFram
     layout->addSpacing(10);
     layout->addWidget(topBox);
     layout->addSpacing(15);
-    layout->addWidget(table);
+    layout->addWidget(addressTbl);
     layout->addSpacing(20);
 
     fundsMenu = new BlocknetFundsMenu;
@@ -91,7 +117,14 @@ void BlocknetAddressBook::setWalletModel(WalletModel *w) {
     if (!walletModel || !walletModel->getOptionsModel())
         return;
 
-    initialize();
+    //initialize();
+    addressTbl->setWalletModel(walletModel);
+    addressTbl->horizontalHeader()->setSectionResizeMode(BlocknetAddressBookFilterProxy::AddressBookAvatar, QHeaderView::Fixed);
+    addressTbl->horizontalHeader()->setSectionResizeMode(BlocknetAddressBookFilterProxy::AddressBookAlias, QHeaderView::Stretch);
+    addressTbl->horizontalHeader()->setSectionResizeMode(BlocknetAddressBookFilterProxy::AddressBookAddress, QHeaderView::ResizeToContents);
+    addressTbl->horizontalHeader()->setSectionResizeMode(BlocknetAddressBookFilterProxy::AddressBookCopy, QHeaderView::Stretch);
+    addressTbl->horizontalHeader()->setSectionResizeMode(BlocknetAddressBookFilterProxy::AddressBookEdit, QHeaderView::Stretch);
+    addressTbl->horizontalHeader()->setSectionResizeMode(BlocknetAddressBookFilterProxy::AddressBookDelete, QHeaderView::Stretch);
 }
 
 void BlocknetAddressBook::initialize() {
@@ -128,7 +161,12 @@ void BlocknetAddressBook::initialize() {
         return a.alias > b.alias;
     });
 
-    this->setData(dataModel);
+    //this->setData(dataModel);
+
+    //this->setModel(walletModel->getAddressTableModel());
+
+    //addressTbl->setModel(walletModel->getAddressTableModel());
+    //addressTbl->sortByColumn(0, Qt::AscendingOrder);
 }
 
 void BlocknetAddressBook::unwatch() {
@@ -137,6 +175,14 @@ void BlocknetAddressBook::unwatch() {
 
 void BlocknetAddressBook::watch() {
     table->setEnabled(true);
+}
+
+void BlocknetAddressBook::aliasChanged(const QString &alias) {
+    addressTbl->setAlias(alias);
+}
+
+void BlocknetAddressBook::addressChanged(const QString &address) {
+    addressTbl->setAddress(address);
 }
 
 QVector<BlocknetAddressBook::Address> BlocknetAddressBook::filtered(int filter, int chainHeight) {
@@ -283,3 +329,277 @@ void BlocknetAddressBook::onAddressAction() {
     }
 }
 
+BlocknetAddressBookTable::BlocknetAddressBookTable(QWidget *parent) : QTableView(parent),
+                                                                                    walletModel(nullptr) {
+}
+
+void BlocknetAddressBookTable::setWalletModel(WalletModel *w) {
+    if (walletModel == w)
+        return;
+    walletModel = w;
+
+    if (walletModel == nullptr) {
+        setModel(nullptr);
+        return;
+    }
+
+    //this->setItemDelegateForColumn(BlocknetAddressBookFilterProxy::AddressBookAction, new BlocknetAddressBookCellItem(this));
+
+    // Set up transaction list
+    auto *filter = new BlocknetAddressBookFilterProxy(walletModel->getOptionsModel(), this);
+    filter->setSourceModel(walletModel->getAddressTableModel());
+    filter->setDynamicSortFilter(true);
+    filter->setSortRole(Qt::EditRole);
+    filter->setFilterRole(Qt::EditRole);
+    filter->setSortCaseSensitivity(Qt::CaseInsensitive);
+    filter->setFilterCaseSensitivity(Qt::CaseInsensitive);
+    filter->sort(BlocknetAddressBookFilterProxy::AddressBookAlias, Qt::DescendingOrder);
+    setModel(filter);
+
+    //setModel(walletModel->getAddressTableModel());
+}
+
+void BlocknetAddressBookTable::leave() {
+    this->blockSignals(true);
+    model()->blockSignals(true);
+}
+void BlocknetAddressBookTable::enter() {
+    this->blockSignals(false);
+    model()->blockSignals(false);
+}
+
+void BlocknetAddressBookTable::setAlias(const QString &alias) {
+    auto *m = dynamic_cast<BlocknetAddressBookFilterProxy*>(this->model());
+    m->setAlias(alias);
+}
+
+void BlocknetAddressBookTable::setAddress(const QString &address) {
+    auto *m = dynamic_cast<BlocknetAddressBookFilterProxy*>(this->model());
+    m->setAddress(address);
+}
+
+BlocknetAddressBookFilterProxy::BlocknetAddressBookFilterProxy(OptionsModel *o, QObject *parent) : QSortFilterProxyModel(parent),
+                                                                                                                 optionsModel(o),
+                                                                                                                 limitRows(-1),
+                                                                                                                 alias(QString()),
+                                                                                                                 address(QString()) {}
+
+void BlocknetAddressBookFilterProxy::setAlias(const QString &alias) {
+    this->alias = alias;
+    invalidateFilter();
+}
+
+void BlocknetAddressBookFilterProxy::setAddress(const QString &address) {
+    this->address = address;
+    invalidateFilter();
+}
+
+bool BlocknetAddressBookFilterProxy::filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const {
+    QModelIndex index = sourceModel()->index(sourceRow, 0, sourceParent);
+
+    return true;
+}
+
+bool BlocknetAddressBookFilterProxy::lessThan(const QModelIndex &left, const QModelIndex &right) const {
+    switch (left.column()) {
+        case AddressBookAvatar: {
+            auto l1 = sourceModel()->index(left.row(), AddressTableModel::Label).data(Qt::DisplayRole);
+            auto r1 = sourceModel()->index(right.row(), AddressTableModel::Label).data(Qt::DisplayRole);
+            return l1.toLongLong() < r1.toLongLong();
+        }
+        case AddressBookAlias: {
+            auto l2 = sourceModel()->index(left.row(), AddressTableModel::Label).data(Qt::DisplayRole);
+            auto r2 = sourceModel()->index(right.row(), AddressTableModel::Label).data(Qt::DisplayRole);
+            return l2.toString() < r2.toString();
+        }
+        case AddressBookAddress: {
+            auto l3 = sourceModel()->index(left.row(), AddressTableModel::Address).data(Qt::DisplayRole);
+            auto r3 = sourceModel()->index(right.row(), AddressTableModel::Address).data(Qt::DisplayRole);
+            return l3.toString() < r3.toString();
+        }
+    }
+    return QSortFilterProxyModel::lessThan(left, right);
+}
+
+int BlocknetAddressBookFilterProxy::columnCount(const QModelIndex &) const {
+    return BlocknetAddressBookFilterProxy::AddressBookDelete + 1;
+}
+
+int BlocknetAddressBookFilterProxy::rowCount(const QModelIndex& parent) const {
+    if (limitRows != -1)
+        return std::min(QSortFilterProxyModel::rowCount(parent), limitRows);
+    else
+        return QSortFilterProxyModel::rowCount(parent);
+}
+
+QVariant BlocknetAddressBookFilterProxy::headerData(int section, Qt::Orientation orientation, int role) const {
+    if (orientation == Qt::Horizontal) {
+        if (role == Qt::DisplayRole) {
+            switch (section) {
+                case AddressBookAction:
+                    return tr("");
+                case AddressBookAvatar:
+                    return tr("");
+                case AddressBookAlias:
+                    return tr("Alias");
+                case AddressBookAddress:
+                    return tr("Address");
+                case AddressBookCopy:
+                    return tr("");
+                case AddressBookEdit:
+                    return tr("");
+                case AddressBookDelete:
+                    return tr("");
+                default:
+                    return tr("");
+            }
+        } else if (role == Qt::TextAlignmentRole) {
+            return Qt::AlignLeft;
+        }
+    }
+    return QSortFilterProxyModel::headerData(section, orientation, role);
+}
+
+QVariant BlocknetAddressBookFilterProxy::data(const QModelIndex &index, int role) const {
+    if (!index.isValid())
+        return QVariant();
+
+    auto *model = dynamic_cast<AddressTableModel*>(sourceModel());
+    QModelIndex sourceIndex = mapToSource(index);
+    
+    //auto *rec = static_cast<TransactionRecord*>(model->index(sourceIndex.row(), 0).internalPointer());
+    //auto* rec = static_cast<AddressTableEntry*>(model->index(sourceIndex.row(), 0).internalPointer());
+
+    if (role == Qt::DisplayRole) {
+        switch (index.column()) {
+            case AddressBookAction:
+                return tr("action");//model->data(sourceIndex, role);
+            case AddressBookAvatar:
+                return tr("avatar");//model->data(sourceIndex, role);
+            case AddressBookAlias:
+                return tr("alias");
+            case AddressBookAddress:
+                return tr("address");//model->data(model->index(sourceIndex.row(), 1, sourceIndex.parent()), role);
+            case AddressBookCopy:
+                return tr("copy");
+            case AddressBookEdit:
+                return tr("edit");
+            case AddressBookDelete:
+                return tr("delete");
+        }
+    }
+    return QVariant();
+   // return QSortFilterProxyModel::data(index, role);
+}
+
+void BlocknetAddressBook::setModel(AddressTableModel* model)
+{
+    this->model = model;
+    if (!model)
+        return;
+
+    proxyModel = new QSortFilterProxyModel(this);
+    proxyModel->setSourceModel(model);
+    proxyModel->setDynamicSortFilter(true);
+    proxyModel->setSortCaseSensitivity(Qt::CaseInsensitive);
+    proxyModel->setFilterCaseSensitivity(Qt::CaseInsensitive);
+    /*switch (tab) {
+    case ReceivingTab:
+        // Receive filter
+        proxyModel->setFilterRole(AddressTableModel::TypeRole);
+        proxyModel->setFilterFixedString(AddressTableModel::Receive);
+        break;
+    case SendingTab:
+        // Send filter
+        proxyModel->setFilterRole(AddressTableModel::TypeRole);
+        proxyModel->setFilterFixedString(AddressTableModel::Send);
+        break;
+    }*/
+
+    addressTbl->setModel(proxyModel);
+    addressTbl->sortByColumn(BlocknetAddressBookFilterProxy::AddressBookAlias, Qt::AscendingOrder);
+
+    //selectionChanged();
+}
+
+BlocknetAddressBookCellItem::BlocknetAddressBookCellItem(QObject *parent) : QStyledItemDelegate(parent) { }
+
+void BlocknetAddressBookCellItem::paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const {
+    /*if (index.column() == BlocknetAddressBookFilterProxy::AddressBookAction) {
+        //painter->save();
+
+        auto *widget = new QWidget();
+        widget->setContentsMargins(QMargins());
+        auto *boxLayout = new QVBoxLayout;
+        boxLayout->setContentsMargins(QMargins());
+        boxLayout->setSpacing(0);
+        widget->setLayout(boxLayout);
+
+        auto *button = new BlocknetActionBtn;
+        //auto *address = static_cast<QString>(index.data(Qt::DisplayRole));
+        //button->setID(address);
+        boxLayout->addWidget(button, 0, Qt::AlignCenter);
+        //connect(button, &BlocknetActionBtn::clicked, this, &BlocknetAddressBook::onAddressAction);
+
+        QStyleOptionComplex box;
+        box.rect = option.rect;
+
+        //QWidget *srcWidget = qobject_cast<QWidget *>(option.styleObject);
+        //// style->metaObject()->className() = QStyleSheetStyle
+        //QStyle *style = srcWidget ? srcWidget->style() : QApplication::style();
+
+        //style->drawComplexControl(QStyle::CC_CustomBase, &box, painter, widget);
+        QApplication::style()->drawComplexControl(QStyle::CC_CustomBase, &box, painter, widget);
+        //QApplication::style()->drawComplexControl(QStyle::CC)
+        //QApplication::style()->drawControl(QStyle::CE_ComboBoxLabel, &box, painter, 0);
+    
+        //painter->restore();
+    } else {
+         QStyledItemDelegate::paint(painter, option, index);
+    }*/
+    //QStyledItemDelegate::paint(painter, option, index);
+}
+
+QWidget *BlocknetAddressBookCellItem::createEditor(QWidget *parent,
+                                    const QStyleOptionViewItem &option,
+                                    const QModelIndex &index) const {
+
+    return QStyledItemDelegate::createEditor(parent, option, index);
+
+    /*if (index.column() == BlocknetAddressBookFilterProxy::AddressBookAction) {
+        auto *widget = new QWidget();
+        widget->setContentsMargins(QMargins());
+        auto *boxLayout = new QVBoxLayout;
+        boxLayout->setContentsMargins(QMargins());
+        boxLayout->setSpacing(0);
+        widget->setLayout(boxLayout);
+
+        auto *button = new BlocknetActionBtn;
+        //auto *address = static_cast<QString>(index.data(Qt::DisplayRole));
+        //button->setID(address);
+        boxLayout->addWidget(button, 0, Qt::AlignCenter);
+        //connect(button, &BlocknetActionBtn::clicked, this, &BlocknetAddressBook::onAddressAction);
+        return widget;
+    } else {
+        auto *widget = new QWidget();
+        widget->setContentsMargins(QMargins());
+        auto *boxLayout = new QVBoxLayout;
+        boxLayout->setContentsMargins(QMargins());
+        boxLayout->setSpacing(0);
+        widget->setLayout(boxLayout);
+
+        auto *button = new BlocknetActionBtn;
+        //auto *address = static_cast<QString>(index.data(Qt::DisplayRole));
+        //button->setID(address);
+        boxLayout->addWidget(button, 0, Qt::AlignCenter);
+        //connect(button, &BlocknetActionBtn::clicked, this, &BlocknetAddressBook::onAddressAction);
+        return widget;
+        //return QStyledItemDelegate::createEditor(parent, option, index);
+    }*/
+}
+
+QSize BlocknetAddressBookCellItem::sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const {
+    if (index.column() == BlocknetAddressBookFilterProxy::AddressBookAction)
+        return {50, option.rect.height()};
+    return QStyledItemDelegate::sizeHint(option, index);
+}
