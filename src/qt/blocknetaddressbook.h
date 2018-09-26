@@ -15,8 +15,6 @@
 #include <QFrame>
 #include <QVBoxLayout>
 #include <QLabel>
-#include <QTableWidget>
-#include <QTableWidgetItem>
 #include <QTableView>
 #include <QSortFilterProxyModel>
 #include <QVariant>
@@ -32,7 +30,6 @@ class BlocknetAddressBook : public QFrame
 public:
     explicit BlocknetAddressBook(QWidget *popup, QFrame *parent = nullptr);
     void setWalletModel(WalletModel *w);
-    void setModel(AddressTableModel* model);
 
     struct Address {
         QString alias;
@@ -46,7 +43,6 @@ private:
     QLabel *addButtonLbl;
     QLabel *filterLbl;
     BlocknetDropdown *addressDropdown;
-    QTableWidget *table;
     BlocknetAddressBookTable *addressTbl;
     AddressTableModel* model;
     QSortFilterProxyModel* proxyModel;
@@ -55,7 +51,6 @@ private:
     BlocknetFundsMenu *fundsMenu = nullptr;
     QWidget *popupWidget;
 
-    void initialize();
     void setData(QVector<Address> data);
     QVector<Address> filtered(int filter, int chainHeight);
     void unwatch();
@@ -111,6 +106,7 @@ public:
     QVariant data(const QModelIndex &index, int role) const override;
     QModelIndex mapToSource(const QModelIndex &proxyIndex) const override;
     QModelIndex index(int row, int column, const QModelIndex &parent = QModelIndex()) const override;
+    QModelIndex parent(const QModelIndex &index) const override;
     int rowCount(const QModelIndex &parent) const override;
     int columnCount(const QModelIndex &) const override;
 
