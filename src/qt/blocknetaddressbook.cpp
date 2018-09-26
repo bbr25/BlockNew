@@ -457,7 +457,22 @@ QVariant BlocknetAddressBookFilterProxy::headerData(int section, Qt::Orientation
             return Qt::AlignLeft;
         }
     }
-    return QSortFilterProxyModel::headerData(section, orientation, role);
+    return QVariant();
+}
+
+QModelIndex BlocknetAddressBookFilterProxy::index(int row, int column, const QModelIndex &parent) const {
+    if (column > 1)
+        return createIndex(row, column);
+
+    return QSortFilterProxyModel::index(row, column);
+}
+
+
+QModelIndex BlocknetAddressBookFilterProxy::mapToSource(const QModelIndex &proxyIndex) const {
+    auto index = proxyIndex;
+    if (proxyIndex.column() > 1)
+        index = this->index(proxyIndex.row(), 0);
+    return QSortFilterProxyModel::mapToSource(index);
 }
 
 QVariant BlocknetAddressBookFilterProxy::data(const QModelIndex &index, int role) const {
@@ -489,7 +504,6 @@ QVariant BlocknetAddressBookFilterProxy::data(const QModelIndex &index, int role
         }
     }
     return QVariant();
-   // return QSortFilterProxyModel::data(index, role);
 }
 
 void BlocknetAddressBook::setModel(AddressTableModel* model)

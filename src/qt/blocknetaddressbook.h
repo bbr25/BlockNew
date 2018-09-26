@@ -109,6 +109,8 @@ public:
     explicit BlocknetAddressBookFilterProxy(OptionsModel *o, QObject *parent = nullptr);
 
     QVariant data(const QModelIndex &index, int role) const override;
+    QModelIndex mapToSource(const QModelIndex &proxyIndex) const override;
+    QModelIndex index(int row, int column, const QModelIndex &parent = QModelIndex()) const override;
     int rowCount(const QModelIndex &parent) const override;
     int columnCount(const QModelIndex &) const override;
 
