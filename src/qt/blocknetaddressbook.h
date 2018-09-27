@@ -30,6 +30,7 @@ class BlocknetAddressBook : public QFrame
 public:
     explicit BlocknetAddressBook(QWidget *popup, QFrame *parent = nullptr);
     void setWalletModel(WalletModel *w);
+    void connectActionButton(BlocknetActionBtn *b);
 
     struct Address {
         QString alias;
@@ -46,13 +47,9 @@ private:
     BlocknetAddressBookTable *addressTbl;
     AddressTableModel* model;
     QSortFilterProxyModel* proxyModel;
-    QVector<Address> dataModel;
-    QVector<Address> filteredData;
     BlocknetFundsMenu *fundsMenu = nullptr;
     QWidget *popupWidget;
 
-    void setData(QVector<Address> data);
-    QVector<Address> filtered(int filter, int chainHeight);
     void unwatch();
     void watch();
 
@@ -90,11 +87,13 @@ public:
     void setWalletModel(WalletModel *w);
     void setAlias(const QString &alias);
     void setAddress(const QString &address);
+    void setParentFrame(BlocknetAddressBook *f);
     void leave();
     void enter();
 
 private:
     WalletModel *walletModel;
+    BlocknetAddressBook *frame;
 };
 
 class BlocknetAddressBookFilterProxy : public QSortFilterProxyModel {
@@ -130,6 +129,8 @@ public:
     void setLimit(int limit); // Set maximum number of rows returned, -1 if unlimited.
     void setAlias(const QString &alias);
     void setAddress(const QString &address);
+    void setTable(BlocknetAddressBookTable *t);
+    void setParentFrame(BlocknetAddressBook *f);
 
 protected:
     bool filterAcceptsRow(int source_row, const QModelIndex &source_parent) const override;
@@ -141,25 +142,8 @@ private:
     int limitRows;
     QString alias;
     QString address;
-};
-
-#include <QStyledItemDelegate>
-
-/**
- * @brief Responsible for drawing the custom table columns (Status, Date, Amount).
- * @param o
- * @param parent
- */
-class BlocknetAddressBookCellItem : public QStyledItemDelegate {
-    Q_OBJECT
-
-public:
-    explicit BlocknetAddressBookCellItem(QObject *parent = nullptr);
-
-protected:
-    void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const override;
-    QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const override;
-    QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const override;
+    BlocknetAddressBookTable *table;
+    BlocknetAddressBook *frame;
 };
 
 #endif // BLOCKNETADDRESSBOOK_H
